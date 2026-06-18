@@ -4,6 +4,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
@@ -100,12 +101,18 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       setProfiles(Object.fromEntries(dir.map((p) => [p.alias, p])));
 
       const initial = await sdk.statements.query("home");
-      setFeed(dedupe(initial));
+      // Profile statements resolve aliases -> handles; they're metadata, not feed.
+      initial.forEach(ingestProfile);
+      setFeed(dedupe(initial.filter((s) => s.kind !== "profile")));
 
       const cached = sdk.kv.get<Session>("session");
       if (cached) setSession(cached);
 
       unsub = sdk.statements.subscribe("home", (s) => {
+        if (s.kind === "profile") {
+          ingestProfile(s);
+          return;
+        }
         setFeed((prev) => dedupe([s, ...prev]));
         ensureProfile(s.author);
       });
@@ -115,6 +122,30 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     return () => unsub();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // dotNS / identity resolution on a gossip network: every user broadcasts a
+  // signed `profile` statement carrying their handle + display name, and clients
+  // build the alias -> identity map from those. Announce ours once we're ready.
+  const announced = useRef(false);
+  useEffect(() => {
+    if (!ready || !session || announced.current) return;
+    announced.current = true;
+    const p = session.profile;
+    sdk.statements
+      .submit({
+        kind: "profile",
+        author: session.pop.alias,
+        body: JSON.stringify({
+          handle: p.handle,
+          displayName: p.displayName,
+          bio: p.bio,
+          human: p.human,
+          avatarHue: p.avatarHue,
+        }),
+        channel: "home",
+      })
+      .catch(() => {});
+  }, [ready, session]);
 
   // Always keep the signed-in user's own profile resolvable, even after a
   // reload when the in-memory registry is empty (otherwise your own posts
@@ -132,6 +163,32 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         if (p) setProfiles((cur) => ({ ...cur, [alias]: p }));
       });
       return prev;
+    });
+  }, []);
+
+  // Parse a broadcast `profile` statement into the alias -> identity map.
+  const ingestProfile = useCallback((s: Statement) => {
+    if (s.kind !== "profile" || !s.body) return;
+    let data: Partial<Profile>;
+    try {
+      data = JSON.parse(s.body) as Partial<Profile>;
+    } catch {
+      return;
+    }
+    if (!data.handle && !data.displayName) return;
+    setProfiles((prev) => {
+      const existing = prev[s.author];
+      // Don't overwrite our own session-backed profile with a stale broadcast.
+      const merged: Profile = {
+        handle: data.handle ?? existing?.handle ?? "",
+        alias: s.author,
+        displayName: data.displayName ?? existing?.displayName ?? data.handle ?? "",
+        bio: data.bio ?? existing?.bio ?? "",
+        human: data.human ?? existing?.human ?? true,
+        joinedTs: existing?.joinedTs ?? s.ts,
+        avatarHue: data.avatarHue ?? existing?.avatarHue ?? hueOf(s.author),
+      };
+      return { ...prev, [s.author]: merged };
     });
   }, []);
 
@@ -346,6 +403,12 @@ export function useStore(): StoreValue {
 }
 
 export { sdk };
+
+function hueOf(s: string): number {
+  let h = 0;
+  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) % 360;
+  return h;
+}
 
 function dedupe(list: Statement[]): Statement[] {
   const seen = new Set<string>();

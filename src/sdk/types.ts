@@ -22,7 +22,14 @@ export type Address = string;
 /** Content identifier for durable bytes pinned to the Bulletin Chain. */
 export type Cid = string;
 
-export type StatementKind = "post" | "like" | "repost" | "follow" | "reply" | "dm";
+export type StatementKind =
+  | "post"
+  | "like"
+  | "repost"
+  | "follow"
+  | "reply"
+  | "dm"
+  | "profile";
 
 /**
  * The atomic unit of the network. Short text lives inline in `body`; longer
