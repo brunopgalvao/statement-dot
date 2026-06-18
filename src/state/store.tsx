@@ -8,7 +8,17 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { bootSDK, getSDK, type PopProof, type Profile, type Statement } from "@/sdk";
+import {
+  bootSDK,
+  getSDK,
+  type ChatContent,
+  type ChatMessage,
+  type ChatRoom,
+  type PopProof,
+  type Profile,
+  type RoomKind,
+  type Statement,
+} from "@/sdk";
 
 // Starts as the mock; `bootSDK()` swaps in the live adapter inside a Host.
 // `sdk` is a module `let`, so the swap propagates to importers (live binding).
@@ -69,6 +79,21 @@ interface StoreValue {
   closeProfile(): void;
   setChannel(channel: string | null): void;
   setScope(scope: Scope): void;
+  // chat / messenger
+  rooms: ChatRoom[];
+  activeRoomId: string | null;
+  chatMessages: Record<string, ChatMessage[]>;
+  typing: Record<string, string[]>;
+  online: Set<string>;
+  totalUnread: number;
+  openRoom(roomId: string): void;
+  closeRoom(): void;
+  startChat(aliasOrHandle: string): Promise<string | null>;
+  createGroup(input: { kind: RoomKind; members: string[]; title: string }): Promise<string>;
+  sendMessage(roomId: string, content: ChatContent, replyTo?: string): Promise<void>;
+  reactMessage(roomId: string, messageId: string, emoji: string): Promise<void>;
+  typingIn(roomId: string): void;
+  canPostIn(room: ChatRoom): boolean;
 }
 
 const StoreContext = createContext<StoreValue | null>(null);
@@ -88,6 +113,15 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [profileAlias, setProfileAlias] = useState<string | null>(null);
   const [activeChannel, setActiveChannel] = useState<string | null>(null);
   const [scope, setScope] = useState<Scope>("everyone");
+  // chat
+  const [rooms, setRooms] = useState<ChatRoom[]>([]);
+  const [activeRoomId, setActiveRoomId] = useState<string | null>(null);
+  const [chatMessages, setChatMessages] = useState<Record<string, ChatMessage[]>>({});
+  const [typing, setTyping] = useState<Record<string, string[]>>({});
+  const [online, setOnline] = useState<Set<string>>(new Set());
+  const roomSubRef = useRef<() => void>(() => {});
+  const typingSubRef = useRef<() => void>(() => {});
+  const typingTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
 
   // Boot: host handshake, hydrate cache, load directory + feed, subscribe.
   useEffect(() => {
@@ -103,7 +137,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       const initial = await sdk.statements.query("home");
       // Profile statements resolve aliases -> handles; they're metadata, not feed.
       initial.forEach(ingestProfile);
-      setFeed(dedupe(initial.filter((s) => s.kind !== "profile")));
+      setFeed(dedupe(initial.filter(isFeedStatement)));
 
       const cached = sdk.kv.get<Session>("session");
       if (cached) setSession(cached);
@@ -113,6 +147,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           ingestProfile(s);
           return;
         }
+        // Chat statements (DMs/typing/presence on a chat: topic) are handled by
+        // the chat layer, never the social feed.
+        if (!isFeedStatement(s)) return;
         setFeed((prev) => dedupe([s, ...prev]));
         ensureProfile(s.author);
       });
@@ -155,6 +192,27 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       setProfiles((prev) => ({ ...prev, [session.pop.alias]: session.profile }));
     }
   }, [session]);
+
+  // Chat: subscribe to the room list + presence once signed in, and announce
+  // our own presence.
+  const chatBooted = useRef(false);
+  useEffect(() => {
+    if (!ready || !session || chatBooted.current) return;
+    chatBooted.current = true;
+    const offRooms = sdk.chat.subscribeRooms((list) => {
+      setRooms(list);
+      list.forEach((r) => r.members.forEach(ensureProfile));
+    });
+    const offPresence = sdk.chat.subscribePresence((s) => setOnline(new Set(s)));
+    sdk.chat.setPresence();
+    const ping = setInterval(() => sdk.chat.setPresence(), 45_000);
+    return () => {
+      offRooms();
+      offPresence();
+      clearInterval(ping);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ready, session]);
 
   const ensureProfile = useCallback((alias: string) => {
     setProfiles((prev) => {
@@ -373,6 +431,82 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const closeProfile = useCallback(() => setProfileAlias(null), []);
   const setChannel = useCallback((c: string | null) => setActiveChannel(c), []);
 
+  // ---- chat / messenger actions ----
+  const openRoom = useCallback<StoreValue["openRoom"]>((roomId) => {
+    setActiveRoomId(roomId);
+    roomSubRef.current();
+    typingSubRef.current();
+    // load durable history + live messages
+    sdk.chat.history(roomId).then((h) => setChatMessages((m) => ({ ...m, [roomId]: h })));
+    roomSubRef.current = sdk.chat.subscribeMessages(roomId, (msg) => {
+      setChatMessages((m) => {
+        const prev = m[roomId] ?? [];
+        const i = prev.findIndex((x) => x.id === msg.id);
+        const next = i >= 0 ? prev.map((x) => (x.id === msg.id ? msg : x)) : [...prev, msg];
+        return { ...m, [roomId]: next };
+      });
+    });
+    typingSubRef.current = sdk.chat.subscribeTyping(roomId, (alias) => {
+      setTyping((t) => ({ ...t, [roomId]: [...new Set([...(t[roomId] ?? []), alias])] }));
+      clearTimeout(typingTimers.current[`${roomId}:${alias}`]);
+      typingTimers.current[`${roomId}:${alias}`] = setTimeout(() => {
+        setTyping((t) => ({ ...t, [roomId]: (t[roomId] ?? []).filter((a) => a !== alias) }));
+      }, 4000);
+    });
+    sdk.chat.markRead(roomId, Date.now());
+  }, []);
+
+  const closeRoom = useCallback(() => {
+    roomSubRef.current();
+    typingSubRef.current();
+    roomSubRef.current = () => {};
+    typingSubRef.current = () => {};
+    setActiveRoomId(null);
+  }, []);
+
+  const startChat = useCallback<StoreValue["startChat"]>(async (aliasOrHandle) => {
+    if (!session) return null;
+    let alias = aliasOrHandle;
+    if (aliasOrHandle.includes(".dot")) {
+      const resolved = await sdk.chain.resolveHandle(aliasOrHandle).catch(() => null);
+      if (resolved) alias = resolved;
+      else {
+        const hit = Object.values(profiles).find((p) => p.handle === aliasOrHandle);
+        if (hit) alias = hit.alias;
+        else return null;
+      }
+    }
+    const id = await sdk.chat.createRoom({ kind: "dm", members: [alias] });
+    openRoom(id);
+    return id;
+  }, [session, profiles, openRoom]);
+
+  const createGroup = useCallback<StoreValue["createGroup"]>(
+    async ({ kind, members, title }) => {
+      const id = await sdk.chat.createRoom({ kind, members, title });
+      openRoom(id);
+      return id;
+    },
+    [openRoom]
+  );
+
+  const sendMessage = useCallback<StoreValue["sendMessage"]>(
+    async (roomId, content, replyTo) => {
+      await sdk.chat.send(roomId, content, replyTo);
+    },
+    []
+  );
+
+  const reactMessage = useCallback<StoreValue["reactMessage"]>(
+    async (roomId, messageId, emoji) => {
+      await sdk.chat.react(roomId, messageId, emoji);
+    },
+    []
+  );
+
+  const typingIn = useCallback((roomId: string) => sdk.chat.setTyping(roomId), []);
+  const canPostIn = useCallback((room: ChatRoom) => sdk.chat.canPost(room), []);
+
   const countsFor = useCallback(
     (id: string): Counts => counts[id] ?? { like: 0, reply: 0, echo: 0 },
     [counts]
@@ -381,6 +515,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const statementById = useCallback((id: string) => byId[id], [byId]);
   const profileFor = useCallback((alias: string) => profiles[alias], [profiles]);
 
+  const totalUnread = useMemo(() => rooms.reduce((n, r) => n + (r.unread ?? 0), 0), [rooms]);
+
   const value = useMemo<StoreValue>(
     () => ({
       ready, hostKind, session, feed, profiles, following, liked, echoed, tipsGiven,
@@ -388,12 +524,16 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       countsFor, repliesOf, statementById, profileFor,
       onboard, post, reply, like, echo, follow, tip, vote,
       openThread, closeThread, openProfile, closeProfile, setChannel, setScope,
+      rooms, activeRoomId, chatMessages, typing, online, totalUnread,
+      openRoom, closeRoom, startChat, createGroup, sendMessage, reactMessage, typingIn, canPostIn,
     }),
     [ready, hostKind, session, feed, profiles, following, liked, echoed, tipsGiven,
       threadId, profileAlias, activeChannel, scope,
       countsFor, repliesOf, statementById, profileFor,
       onboard, post, reply, like, echo, follow, tip, vote,
-      openThread, closeThread, openProfile, closeProfile, setChannel]
+      openThread, closeThread, openProfile, closeProfile, setChannel,
+      rooms, activeRoomId, chatMessages, typing, online, totalUnread,
+      openRoom, closeRoom, startChat, createGroup, sendMessage, reactMessage, typingIn, canPostIn]
   );
 
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;
@@ -406,6 +546,18 @@ export function useStore(): StoreValue {
 }
 
 export { sdk };
+
+/** A statement that belongs in the social feed (not a DM/typing/presence/profile). */
+function isFeedStatement(s: Statement): boolean {
+  if (s.channel?.startsWith("chat:")) return false;
+  return (
+    s.kind === "post" ||
+    s.kind === "like" ||
+    s.kind === "repost" ||
+    s.kind === "follow" ||
+    s.kind === "reply"
+  );
+}
 
 function hueOf(s: string): number {
   let h = 0;

@@ -26,6 +26,7 @@ import { SessionKeyManager } from "@parity/product-sdk-keys";
 import { createLocalKvStore, type LocalKvStore } from "@parity/product-sdk-local-storage";
 import { isValidSs58, ss58ToH160, truncateAddress } from "@parity/product-sdk-address";
 import { summit_asset_hub } from "@parity/product-sdk-descriptors/summit-asset-hub";
+import { createLiveChat } from "./chat";
 
 import type { Profile, ProductSDK, Statement } from "../types";
 import { REGISTRY_LIBRARY, STATEMENT_REGISTRY_CDM, contractDeployed } from "./cdm";
@@ -49,6 +50,7 @@ export async function createLiveSDK(): Promise<ProductSDK> {
   const store = new StatementStoreClient({ appName: APP_NAME });
 
   let address = "";
+  let myAlias: string | null = null; // per-Product alias; "me" for chat/posts
   let connected = false;
   const recent: Statement[] = []; // local ring buffer (the store is gossip, not history)
   const subs = new Set<(s: Statement) => void>();
@@ -158,7 +160,7 @@ export async function createLiveSDK(): Promise<ProductSDK> {
       }
     })());
 
-  return {
+  const api: ProductSDK = {
     host: {
       async info() {
         const inside = await isInsideContainer().catch(() => false);
@@ -187,6 +189,7 @@ export async function createLiveSDK(): Promise<ProductSDK> {
         // unique personhood. Same account signs contract writes (see getRegistry).
         const acc = await productAccount();
         const alias = acc.address;
+        myAlias = alias;
         let proof = "ringvrf:host";
         const aliasRes = await manager.getProductAccountAlias(APP_DOTNS, 0).catch(() => null);
         if (aliasRes && aliasRes.ok) proof = `ringvrf:${hex(aliasRes.value.alias).slice(0, 16)}`;
@@ -441,7 +444,19 @@ export async function createLiveSDK(): Promise<ProductSDK> {
     },
 
     log,
+    // Hand-rolled chat is attached after construction so it can reuse the
+    // adapter's own statements + kv groups (real-time + durable cache).
+    chat: undefined as unknown as ProductSDK["chat"],
   };
+
+  api.chat = createLiveChat({
+    statements: api.statements,
+    kv: api.kv,
+    getMe: () => myAlias,
+    log,
+  });
+
+  return api;
 }
 
 // ---- helpers ----------------------------------------------------------------

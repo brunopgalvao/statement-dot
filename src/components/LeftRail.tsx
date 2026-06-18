@@ -19,7 +19,7 @@ const NAV: { id: View; label: string; icon: FC<{ className?: string }> }[] = [
 ];
 
 export function LeftRail({ view, setView }: { view: View; setView: (v: View) => void }) {
-  const { session, hostKind, feed } = useStore();
+  const { session, hostKind, feed, totalUnread } = useStore();
 
   return (
     <aside className="rail rail--left">
@@ -41,6 +41,9 @@ export function LeftRail({ view, setView }: { view: View; setView: (v: View) => 
             <span className="nav__dot" />
             <Icon className="" />
             {label}
+            {id === "messages" && totalUnread > 0 && (
+              <span className="nav__badge">{totalUnread}</span>
+            )}
           </button>
         ))}
       </nav>

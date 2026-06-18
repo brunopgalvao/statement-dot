@@ -40,6 +40,8 @@ export default function App() {
 
   const inThread = threadId !== null;
   const inProfile = profileAlias !== null;
+  // The messenger is full-bleed: its own chat list replaces the right rail + head.
+  const messengerFull = view === "messages" && !inThread && !inProfile;
   const head = inThread
     ? { title: "The Record", sub: "Thread" }
     : inProfile
@@ -47,14 +49,16 @@ export default function App() {
       : HEAD[view];
 
   return (
-    <div className="shell">
+    <div className={`shell${messengerFull ? " shell--wide" : ""}`}>
       <LeftRail view={view} setView={nav} />
 
-      <main className="center">
-        <header className="center__head">
-          <div className="center__title">{head.title}</div>
-          <div className="center__sub">{head.sub}</div>
-        </header>
+      <main className={`center${messengerFull ? " center--full" : ""}`}>
+        {!messengerFull && (
+          <header className="center__head">
+            <div className="center__title">{head.title}</div>
+            <div className="center__sub">{head.sub}</div>
+          </header>
+        )}
         {inThread ? (
           <Thread id={threadId!} />
         ) : inProfile ? (
@@ -69,7 +73,7 @@ export default function App() {
         )}
       </main>
 
-      <RightRail />
+      {!messengerFull && <RightRail />}
       <MobileNav view={view} setView={nav} />
     </div>
   );

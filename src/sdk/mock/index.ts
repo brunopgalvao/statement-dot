@@ -8,6 +8,7 @@ import type {
   Statement,
 } from "../types";
 import { BASE, SEED_PROFILES, SEED_STATEMENTS } from "./data";
+import { createMockChat } from "./chat";
 
 // ---------------------------------------------------------------------------
 // In-memory mock of the whole Product SDK. Simulates the People Chain Statement
@@ -27,6 +28,7 @@ export function createMockSDK(): ProductSDK {
   const tipJars = new Map<Address, bigint>();
   const subscribers = new Set<Subscriber>();
   const balances = new Map<Address, bigint>();
+  let myAlias: Address | null = null; // set on proveHumanity; chat needs "me"
   let clock = BASE + 3_600_000; // a little after the newest seed
   let seq = 100;
 
@@ -96,6 +98,7 @@ export function createMockSDK(): ProductSDK {
         await wait(450);
         // Unlinkable per-Product alias — deterministic for this mock session.
         const alias = `5You${ns.replace(/\W/g, "")}Alias${seq}00000000000000`.slice(0, 47);
+        myAlias = alias;
         return { alias, proof: `ringvrf:${alias.slice(0, 12)}`, verifiedTs: now() };
       },
       async sign(payload: string): Promise<string> {
@@ -249,6 +252,8 @@ export function createMockSDK(): ProductSDK {
         }
       },
     },
+
+    chat: createMockChat(() => myAlias),
 
     log(scope, msg, data) {
       // eslint-disable-next-line no-console

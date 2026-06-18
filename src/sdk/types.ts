@@ -29,7 +29,9 @@ export type StatementKind =
   | "follow"
   | "reply"
   | "dm"
-  | "profile";
+  | "profile"
+  | "typing"
+  | "presence";
 
 /**
  * The atomic unit of the network. Short text lives inline in `body`; longer
@@ -94,6 +96,52 @@ export interface Frame {
   tally: Record<string, number>;
 }
 
+// --- Chat (Telegram-style messenger) ----------------------------------------
+
+export type ChatContent =
+  | { kind: "text"; text: string }
+  | { kind: "image"; cid: Cid; caption?: string }
+  | { kind: "card"; title: string; actions: FrameAction[] };
+
+export interface ChatMessage {
+  id: string;
+  roomId: string;
+  author: Address;
+  ts: number;
+  content: ChatContent;
+  /** id of the message this one replies to. */
+  replyTo?: string;
+  /** emoji -> aliases who reacted. */
+  reactions: Record<string, Address[]>;
+  /** aliases who have read up to (incl.) this message. */
+  readBy: Address[];
+}
+
+/**
+ * Room kinds, à la Telegram:
+ * - `dm`         — 1:1 direct message.
+ * - `group`      — small private group chat (everyone posts).
+ * - `supergroup` — large open group chat (everyone posts, many members).
+ * - `channel`    — one-to-many broadcast (only admins post; others read + react).
+ */
+export type RoomKind = "dm" | "group" | "supergroup" | "channel";
+
+export interface ChatRoom {
+  id: string;
+  kind: RoomKind;
+  /** title for group/supergroup/channel (DMs derive it from the other member). */
+  title?: string;
+  members: Address[];
+  /** admins; for a `channel` only admins may post. Defaults to [members[0]]. */
+  admins?: Address[];
+  /** subscriber count for supergroups/channels (members.length may be a sample). */
+  memberCount?: number;
+  lastMessage?: ChatMessage;
+  unread: number;
+  pinned?: boolean;
+  muted?: boolean;
+}
+
 // --- The aggregate SDK, one group per product-sdk package --------------------
 
 export interface ProductSDK {
@@ -133,6 +181,29 @@ export interface ProductSDK {
     /** Subscribe to a topic ("home", a channel, or a thread id). Returns unsub. */
     subscribe(topic: string, onStatement: (s: Statement) => void): () => void;
     query(topic: string): Promise<Statement[]>;
+  };
+
+  /**
+   * Telegram-style messenger. Persistent rooms/messages/groups via the Host
+   * chat surface (`getChatManager`); typing + presence are ephemeral signals
+   * composed over the Statement Store; media is pinned to the Bulletin Chain.
+   */
+  chat: {
+    subscribeRooms(onRooms: (rooms: ChatRoom[]) => void): () => void;
+    createRoom(input: { kind: RoomKind; members: Address[]; title?: string }): Promise<string>;
+    /** Can the current user post in this room? (false for channel non-admins.) */
+    canPost(room: ChatRoom): boolean;
+    history(roomId: string, opts?: { before?: string; limit?: number }): Promise<ChatMessage[]>;
+    subscribeMessages(roomId: string, onMessage: (m: ChatMessage) => void): () => void;
+    send(roomId: string, content: ChatContent, replyTo?: string): Promise<ChatMessage>;
+    react(roomId: string, messageId: string, emoji: string): Promise<void>;
+    markRead(roomId: string, upToTs: number): Promise<void>;
+    /** Ephemeral typing signal (Statement Store, short TTL). */
+    setTyping(roomId: string): void;
+    subscribeTyping(roomId: string, onTyping: (alias: Address) => void): () => void;
+    /** Ephemeral presence ping; subscribe to the set of online aliases. */
+    setPresence(): void;
+    subscribePresence(onOnline: (online: Set<Address>) => void): () => void;
   };
 
   /** `@parity/product-sdk-cloud-storage` — pin durable bytes to the Bulletin Chain. */

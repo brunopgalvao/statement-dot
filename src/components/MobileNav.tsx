@@ -14,7 +14,7 @@ const ITEMS: { id: View; label: string; icon: FC<{ className?: string }> }[] = [
 // is the only navigation on mobile. `active` reflects overlays too (a viewed
 // thread/profile keeps "Record"/"Profile" highlighted).
 export function MobileNav({ view, setView }: { view: View; setView: (v: View) => void }) {
-  const { threadId, profileAlias } = useStore();
+  const { threadId, profileAlias, totalUnread } = useStore();
   const active = threadId ? "home" : profileAlias ? "profile" : view;
 
   return (
@@ -25,7 +25,10 @@ export function MobileNav({ view, setView }: { view: View; setView: (v: View) =>
           className={`mobilenav__item${active === id ? " is-active" : ""}`}
           onClick={() => setView(id)}
         >
-          <Icon className="" />
+          <span className="mobilenav__iconwrap">
+            <Icon className="" />
+            {id === "messages" && totalUnread > 0 && <span className="mobilenav__badge" />}
+          </span>
           <span>{label}</span>
         </button>
       ))}
