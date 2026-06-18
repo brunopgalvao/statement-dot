@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useStore } from "@/state/store";
 import { LeftRail } from "@/components/LeftRail";
 import { RightRail } from "@/components/RightRail";
+import { MobileNav } from "@/components/MobileNav";
 import { Onboarding } from "@/routes/Onboarding";
 import { Home } from "@/routes/Home";
 import { Profile } from "@/routes/Profile";
@@ -69,6 +70,7 @@ export default function App() {
       </main>
 
       <RightRail />
+      <MobileNav view={view} setView={nav} />
     </div>
   );
 }
