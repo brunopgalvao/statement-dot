@@ -1,12 +1,7 @@
 import { useEffect, useState } from "react";
 import { useStore, sdk, type OnboardStep } from "@/state/store";
 import { VerifiedStamp } from "@/components/VerifiedStamp";
-
-const STEPS: { id: OnboardStep; title: string; sub: string }[] = [
-  { id: "pop", title: "Prove personhood", sub: "One Ring-VRF proof in the Polkadot App" },
-  { id: "handle", title: "Claim your .dot", sub: "Register a human-readable name via dotNS" },
-  { id: "record", title: "Sign the record", sub: "Badge written to the social contract" },
-];
+import { CheckSeal } from "@/components/icons";
 
 const order: OnboardStep[] = ["pop", "handle", "record", "done"];
 
@@ -17,20 +12,22 @@ export function Onboarding() {
   const [bio, setBio] = useState("");
   const [step, setStep] = useState<OnboardStep | null>(null);
   const [error, setError] = useState("");
-  const [detected, setDetected] = useState(false);
+  // The dotNS name the signed-in account actually owns (from the Host). When
+  // present it IS the handle — you can't invent one, so nobody can claim a name
+  // they don't own.
+  const [ownedName, setOwnedName] = useState<string | null>(null);
 
-  // You're already signed in to the Host — pull your primary username and
-  // pre-fill the handle (and a default display name) so you don't retype it.
   useEffect(() => {
     let cancelled = false;
     sdk.signer
       .getUserId()
       .then((u) => {
         if (cancelled || !u?.primaryUsername) return;
-        const name = u.primaryUsername.replace(/\.dot$/, "");
-        setHandle((h) => h || name);
-        setDisplayName((d) => d || name);
-        setDetected(true);
+        const full = u.primaryUsername.endsWith(".dot")
+          ? u.primaryUsername
+          : `${u.primaryUsername}.dot`;
+        setOwnedName(full);
+        setDisplayName((d) => d || full.replace(/\.dot$/, ""));
       })
       .catch(() => {});
     return () => {
@@ -39,15 +36,26 @@ export function Onboarding() {
   }, []);
 
   const busy = step !== null && step !== "done";
-  const cleanHandle = handle.trim().replace(/\.dot$/, "").replace(/[^a-z0-9_]/gi, "");
-  const ready = cleanHandle.length >= 2 && displayName.trim().length >= 1;
+  const typedHandle = handle.trim().replace(/\.dot$/, "").replace(/[^a-z0-9_-]/gi, "");
+  const effectiveHandle = ownedName ? ownedName.replace(/\.dot$/, "") : typedHandle;
+  const ready = effectiveHandle.length >= 2 && displayName.trim().length >= 1;
+
+  const STEPS: { id: OnboardStep; title: string; sub: string }[] = [
+    { id: "pop", title: "Prove personhood", sub: "One Ring-VRF proof in the Polkadot App" },
+    {
+      id: "handle",
+      title: ownedName ? "Use your .dot" : "Claim your .dot",
+      sub: ownedName ? "The dotNS name you already own" : "Register a human-readable name via dotNS",
+    },
+    { id: "record", title: "Sign the record", sub: "Badge written to the social contract" },
+  ];
 
   async function attest() {
     if (!ready || busy) return;
     setError("");
     try {
       await onboard(
-        { handle: cleanHandle, displayName: displayName.trim(), bio: bio.trim() },
+        { handle: effectiveHandle, displayName: displayName.trim(), bio: bio.trim() },
         setStep
       );
     } catch (e) {
@@ -89,18 +97,28 @@ export function Onboarding() {
           />
         </div>
 
-        <div className="field field--handle">
-          <label>
-            Your handle{detected && <span style={{ color: "var(--verify)" }}> · from your account</span>}
-          </label>
-          <input
-            value={cleanHandle}
-            onChange={(e) => setHandle(e.target.value)}
-            placeholder="pick-a-name"
-            disabled={busy}
-          />
-          <span className="suffix">.dot</span>
-        </div>
+        {ownedName ? (
+          <div className="field">
+            <label>
+              Your dotNS identity <span style={{ color: "var(--verify)" }}>· you own this</span>
+            </label>
+            <div className="field__owned">
+              <span>{ownedName}</span>
+              <CheckSeal className="" />
+            </div>
+          </div>
+        ) : (
+          <div className="field field--handle">
+            <label>Your handle</label>
+            <input
+              value={typedHandle}
+              onChange={(e) => setHandle(e.target.value)}
+              placeholder="the-dot-name-you-own"
+              disabled={busy}
+            />
+            <span className="suffix">.dot</span>
+          </div>
+        )}
 
         <div className="field">
           <label>One line about you (optional)</label>
@@ -123,7 +141,16 @@ export function Onboarding() {
                   <b>{s.title}</b>
                   <span>{active ? "Working…" : s.sub}</span>
                 </div>
-                {active && <span className="spinner" style={{ borderTopColor: "var(--magenta)", borderColor: "var(--magenta-wash)", borderTopWidth: 2 }} />}
+                {active && (
+                  <span
+                    className="spinner"
+                    style={{
+                      borderTopColor: "var(--magenta)",
+                      borderColor: "var(--magenta-wash)",
+                      borderTopWidth: 2,
+                    }}
+                  />
+                )}
               </div>
             );
           })}
@@ -135,17 +162,13 @@ export function Onboarding() {
           </div>
         )}
 
-        <button
-          type="submit"
-          className="btn btn--magenta affidavit__sign"
-          disabled={!ready || busy}
-        >
-          {busy ? <span className="spinner" /> : `Attest & enter as ${cleanHandle || "…"}.dot`}
+        <button type="submit" className="btn btn--magenta affidavit__sign" disabled={!ready || busy}>
+          {busy ? <span className="spinner" /> : `Attest & enter as ${effectiveHandle || "…"}.dot`}
         </button>
 
         <p className="affidavit__fine">
-          Your biometric never leaves your phone. statement.dot only ever sees an unlinkable alias —
-          never your identity.
+          Personhood is proven on your phone. statement.dot uses the <b>.dot name you already own</b>
+          {" "}— and your per-app alias can't be linked to your activity on other Products.
         </p>
       </form>
     </div>

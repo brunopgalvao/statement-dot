@@ -851,6 +851,27 @@ a {
 .field input:focus {
   border-color: var(--magenta);
 }
+.field__owned {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  background: var(--verify-wash);
+  border: 1px solid rgba(45, 212, 167, 0.45);
+  border-radius: 10px;
+  padding: 12px 14px;
+  font-family: var(--font-mono);
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--ink);
+}
+.field__owned svg {
+  width: 18px;
+  height: 18px;
+  color: var(--verify);
+  flex: none;
+}
+
 .field--handle {
   position: relative;
 }
