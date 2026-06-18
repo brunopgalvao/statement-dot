@@ -4,7 +4,23 @@
    green VERIFIED HUMAN signal. Type: Spline Sans / Spline Sans Mono.
    =========================================================================== */
 
-@import url("https://fonts.googleapis.com/css2?family=Spline+Sans:wght@400;500;600;700&family=Spline+Sans+Mono:wght@400;500;600;700&display=swap");
+/* Self-hosted variable fonts — no external CDN request (drops the
+   ExternalRequest permission and avoids a system-font fallback inside a
+   sandboxed Host). One file per family covers the 400–700 weight range. */
+@font-face {
+  font-family: "Spline Sans";
+  font-style: normal;
+  font-weight: 400 700;
+  font-display: swap;
+  src: url("./fonts/spline-sans.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Spline Sans Mono";
+  font-style: normal;
+  font-weight: 400 700;
+  font-display: swap;
+  src: url("./fonts/spline-sans-mono.woff2") format("woff2");
+}
 
 :root {
   --bg: #000000;
