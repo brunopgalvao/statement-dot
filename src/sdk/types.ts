@@ -184,9 +184,11 @@ export interface ProductSDK {
   };
 
   /**
-   * Telegram-style messenger. Persistent rooms/messages/groups via the Host
-   * chat surface (`getChatManager`); typing + presence are ephemeral signals
-   * composed over the Statement Store; media is pinned to the Bulletin Chain.
+   * Telegram-style messenger — hand-rolled over the product-sdk primitives
+   * (no host chat surface): messages are signed statements on a per-room topic
+   * via `statement-store`, durable history is cached in `local-storage`, media
+   * is pinned to the Bulletin Chain via `cloud-storage`, and typing/presence are
+   * short-TTL ephemeral statements. Rooms: dm / group / supergroup / channel.
    */
   chat: {
     subscribeRooms(onRooms: (rooms: ChatRoom[]) => void): () => void;
