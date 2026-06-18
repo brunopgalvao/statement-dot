@@ -15,7 +15,7 @@
 // SDK itself uses to "survive descriptor drift".
 // ---------------------------------------------------------------------------
 
-import { isInsideContainer } from "@parity/product-sdk-host";
+import { isInsideContainer, requestResourceAllocation } from "@parity/product-sdk-host";
 import { SignerManager, type SignerAccount } from "@parity/product-sdk-signer";
 import { StatementStoreClient } from "@parity/product-sdk-statement-store";
 import { submitAndWatch } from "@parity/product-sdk-tx";
@@ -61,6 +61,13 @@ export async function createLiveSDK(): Promise<ProductSDK> {
     if (!res.ok) throw new Error(`signer connect failed: ${String(res.error)}`);
     address = res.value[0].address;
     manager.selectAccount(address);
+    // Grant an AutoSigning allowance so the Statement Store can sign submissions
+    // (otherwise publish fails "no allowance set for account"). Done as a
+    // standalone call AFTER connect — requesting it inside onConnect deadlocked
+    // the approval modal. Best-effort: if declined, posting will prompt per-tx.
+    await requestResourceAllocation([{ tag: "AutoSigning", value: undefined }]).catch((e) =>
+      log("live", "AutoSigning allowance not granted", e)
+    );
     await store.connect({ mode: "host", accountId: [address, SS58_PREFIX] });
     // Fan a single host subscription out to all app subscribers.
     store.subscribe<Statement>((received) => {

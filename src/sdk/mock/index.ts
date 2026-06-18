@@ -49,9 +49,9 @@ export function createMockSDK(): ProductSDK {
     { body: "just claimed my handle. the .dot name resolving to an alias the app can't link back to me still feels like magic.", channel: "home" },
     { body: "watching a statement gossip across the network in real time. no server in the middle. wild.", channel: "builders" },
     { body: "tipped a stranger for a good take. private payment, no invoice, no middleman.", channel: "home" },
-    { body: "verified-human badge means my replies are from a person. the signal-to-noise here is unreal.", channel: "personhood" },
+    { body: "verified-human badge means my replies are from a person. the signal-to-noise here is unreal.", channel: "home" },
     { body: "elastic scaling on the relay chain means a parachain can grab more blockspace exactly when it needs it. no more fixed slots.", channel: "polkadot" },
-    { body: "treasury tip just cleared via OpenGov. governance that actually ships, who knew.", channel: "governance" },
+    { body: "treasury tip just cleared via OpenGov. governance that actually ships, who knew.", channel: "polkadot" },
   ];
   let chatterIdx = 0;
   const liveTimer = setInterval(() => {

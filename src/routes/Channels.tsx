@@ -5,8 +5,6 @@ const CHANNELS = [
   { tag: "home", label: "the-record", desc: "The main feed. Everything notable, on the public record." },
   { tag: "polkadot", label: "polkadot", desc: "Relay chains, JAM, parachains, and protocol talk." },
   { tag: "builders", label: "builders", desc: "Shipping on the Product SDK. Show your work." },
-  { tag: "governance", label: "governance", desc: "OpenGov proposals, referenda, and treasury." },
-  { tag: "personhood", label: "proof-of-personhood", desc: "Humans only. The whole point." },
 ];
 
 export function Channels({ goHome }: { goHome: (v: View) => void }) {

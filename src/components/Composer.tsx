@@ -8,6 +8,7 @@ export function Composer() {
   const [text, setText] = useState("");
   const [pin, setPin] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
   if (!session) return null;
 
   const long = text.length > 280;
@@ -17,10 +18,18 @@ export function Composer() {
   async function submit() {
     if (empty || busy) return;
     setBusy(true);
+    setError("");
     try {
       await post({ body: text.trim(), channel: activeChannel ?? "home", pin });
       setText("");
       setPin(false);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      setError(
+        /allowance/i.test(msg)
+          ? "Couldn't publish — no signing allowance set. Approve the allowance request on your phone, then retry."
+          : `Couldn't publish: ${msg}`
+      );
     } finally {
       setBusy(false);
     }
@@ -62,6 +71,7 @@ export function Composer() {
             {busy ? <span className="spinner" /> : "Sign & Gossip"}
           </button>
         </div>
+        {error && <div className="composer__error">{error}</div>}
       </div>
     </div>
   );

@@ -61,7 +61,7 @@ export const SEED_STATEMENTS: Statement[] = [
   }),
   post("s4", SEED_PROFILES[3].alias, hours(-5), {
     body: "Your handle is a dotNS name. Your identity is a Ring-VRF alias the app can never link back to you. Both true at once. That's the whole trick.",
-    channel: "personhood",
+    channel: "home",
   }),
   post("s5", SEED_PROFILES[1].alias, hours(-2), {
     body: "poll: what should we build into statement.dot next?",
@@ -82,7 +82,7 @@ export const SEED_STATEMENTS: Statement[] = [
   }),
   post("s7", SEED_PROFILES[2].alias, hours(-1), {
     body: "Referendum 0042 is live: fund a humans-only public-goods grants round. If every voter is a verified person, quadratic funding finally works without sybil attacks.",
-    channel: "governance",
+    channel: "polkadot",
   }),
 
   // --- seed replies (give s1 / s4 a thread) ---
