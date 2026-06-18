@@ -24,39 +24,44 @@ const PACKAGES: { name: string; hot?: boolean }[] = [
 ];
 
 export function RightRail() {
-  const { profiles, session, following, follow, tipsGiven } = useStore();
+  const { profiles, session, following, follow, tipsGiven, openProfile } = useStore();
   const others = Object.values(profiles).filter((p) => p.alias !== session?.pop.alias);
 
   return (
     <aside className="rail rail--right">
       <div className="panel">
         <div className="panel__title">
-          <h3>The Register</h3>
-          <span className="mono-label">Verified</span>
+          <h3>Verified Humans</h3>
+          <span className="mono-label">{others.length}</span>
         </div>
-        {others.map((p) => {
-          const on = following.has(p.alias);
-          return (
-            <div className="who" key={p.alias}>
-              <Avatar name={p.displayName} hue={p.avatarHue} size={38} />
-              <div className="who__main">
-                <div className="who__name">
-                  {p.displayName} {p.human && <VerifiedStamp />}
-                </div>
-                <div className="who__handle">{p.handle}</div>
-              </div>
-              {session && (
-                <button
-                  className="who__follow"
-                  data-on={on}
-                  onClick={() => follow(p.alias)}
-                >
-                  {on ? "Following" : "Follow"}
+        {others.length === 0 ? (
+          <p style={{ color: "var(--ink-faint)", fontSize: 13, lineHeight: 1.5 }}>
+            Just you so far. As other humans join and post, they'll show up here — tap anyone to see
+            their record.
+          </p>
+        ) : (
+          others.map((p) => {
+            const on = following.has(p.alias);
+            return (
+              <div className="who" key={p.alias}>
+                <button className="who__open" onClick={() => openProfile(p.alias)} title={`View ${p.displayName}`}>
+                  <Avatar name={p.displayName} hue={p.avatarHue} size={38} />
+                  <div className="who__main">
+                    <div className="who__name">
+                      {p.displayName} {p.human && <VerifiedStamp />}
+                    </div>
+                    <div className="who__handle">{p.handle}</div>
+                  </div>
                 </button>
-              )}
-            </div>
-          );
-        })}
+                {session && (
+                  <button className="who__follow" data-on={on} onClick={() => follow(p.alias)}>
+                    {on ? "Following" : "Follow"}
+                  </button>
+                )}
+              </div>
+            );
+          })
+        )}
       </div>
 
       <div className="panel">
@@ -65,7 +70,7 @@ export function RightRail() {
           <span className="mono-label">Coinage</span>
         </div>
         <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
-          <span className="serif" style={{ fontSize: 38, fontWeight: 600 }}>
+          <span className="serif" style={{ fontSize: 38, fontWeight: 700 }}>
             ◈{tipsGiven}
           </span>
           <span style={{ color: "var(--ink-faint)", fontSize: 12 }}>
@@ -90,15 +95,17 @@ export function RightRail() {
 
       <div className="panel explain">
         <div className="panel__title">
-          <h3>Why it's bot-free</h3>
+          <h3>Verified, not anonymous</h3>
         </div>
         <p>
-          Every account clears <b>Proof of Personhood</b> once, in the Polkadot App. You get an
-          unlinkable per-Product alias — a Ring-VRF identity the app can never trace back to you.
+          Every account clears{" "}
+          <b>Proof of Personhood</b> once, in the Polkadot App — so every poster is a unique,
+          verified human, not a bot farm or an anonymous sockpuppet. You still get an unlinkable
+          per-Product alias the app can never trace back to you.
         </p>
         <p>
-          So the network can prove you're a unique human and still know nothing about who you are.
-          That's the trick X and the rest can't pull off.
+          It doesn't make people <i>honest</i> — but it does make them <i>real</i> and accountable,
+          and every statement is signed, so you can always verify exactly who said what.
         </p>
       </div>
     </aside>

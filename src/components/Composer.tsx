@@ -1,22 +1,26 @@
 import { useState } from "react";
 import { useStore } from "@/state/store";
 import { Avatar } from "./Avatar";
+import { Pin } from "./icons";
 
 export function Composer() {
   const { session, post, activeChannel } = useStore();
   const [text, setText] = useState("");
+  const [pin, setPin] = useState(false);
   const [busy, setBusy] = useState(false);
   if (!session) return null;
 
   const long = text.length > 280;
   const empty = text.trim().length === 0;
+  const durable = pin || long;
 
   async function submit() {
     if (empty || busy) return;
     setBusy(true);
     try {
-      await post({ body: text.trim(), channel: activeChannel ?? "home" });
+      await post({ body: text.trim(), channel: activeChannel ?? "home", pin });
       setText("");
+      setPin(false);
     } finally {
       setBusy(false);
     }
@@ -37,9 +41,19 @@ export function Composer() {
         />
         <div className="composer__foot">
           <div className="composer__meta">
-            <span>
-              signing as <b style={{ color: "var(--magenta-deep)" }}>{session.profile.handle}</b>
-            </span>
+            <button
+              type="button"
+              className={`pintoggle${durable ? " is-on" : ""}`}
+              onClick={() => setPin((p) => !p)}
+              disabled={long}
+              title={
+                long
+                  ? "Long posts always pin to the Bulletin Chain"
+                  : "Pin this statement to the Bulletin Chain (durable, survives gossip TTL)"
+              }
+            >
+              <Pin /> {durable ? "Durable" : "Pin to record"}
+            </button>
             <span className="composer__count" data-long={long}>
               {long ? "→ Bulletin Chain" : `${text.length}/280`}
             </span>

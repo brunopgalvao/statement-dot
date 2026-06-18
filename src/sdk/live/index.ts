@@ -155,14 +155,22 @@ export async function createLiveSDK(): Promise<ProductSDK> {
     host: {
       async info() {
         const inside = await isInsideContainer().catch(() => false);
-        return {
-          kind: inside ? "web" : "mock",
-          mock: false,
-          capabilities: [
-            "host", "signer", "tx", "chain-client", "statement-store",
-            "cloud-storage", "keys", "local-storage", "address",
-          ],
-        };
+        const capabilities = [
+          "host", "signer", "tx", "chain-client", "statement-store",
+          "cloud-storage", "contracts", "keys", "local-storage", "address",
+        ];
+        if (!inside) return { kind: "mock", mock: false, capabilities };
+        // Distinguish the native webview hosts (Desktop / mobile App) from the
+        // Web host (cross-origin iframe). Coarse pointer ⇒ the mobile App.
+        const win = (globalThis as unknown as { window?: Record<string, unknown> }).window;
+        let kind: "desktop" | "app" | "web" = "web";
+        if (win && (win.__HOST_WEBVIEW_MARK__ === true || win.__HOST_API_PORT__ != null)) {
+          const coarse = (win.matchMedia as ((q: string) => { matches: boolean }) | undefined)?.(
+            "(pointer: coarse)"
+          )?.matches;
+          kind = coarse ? "app" : "desktop";
+        }
+        return { kind, mock: false, capabilities };
       },
     },
 

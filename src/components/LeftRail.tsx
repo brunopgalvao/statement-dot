@@ -4,6 +4,13 @@ import { Hash, Home, Mail, User } from "./icons";
 import { Avatar } from "./Avatar";
 import type { View } from "@/App";
 
+const HOST_LABEL: Record<string, string> = {
+  mock: "Local · Mock",
+  desktop: "Polkadot Desktop",
+  app: "Polkadot App",
+  web: "Polkadot Web",
+};
+
 const NAV: { id: View; label: string; icon: FC<{ className?: string }> }[] = [
   { id: "home", label: "The Record", icon: Home },
   { id: "channels", label: "Channels", icon: Hash },
@@ -22,7 +29,7 @@ export function LeftRail({ view, setView }: { view: View; setView: (v: View) => 
           <span className="dot">.dot</span>
         </span>
       </button>
-      <span className="wordmark__tag">Statements you can verify, from humans you can trust.</span>
+      <span className="wordmark__tag">Statements you can verify, from humans you can't fake.</span>
 
       <nav className="nav">
         {NAV.map(({ id, label, icon: Icon }) => (
@@ -55,7 +62,7 @@ export function LeftRail({ view, setView }: { view: View; setView: (v: View) => 
       <div className="status">
         <div className="status__row">
           <span>Host</span>
-          <b>{hostKind === "mock" ? "Local · Mock" : hostKind}</b>
+          <b>{HOST_LABEL[hostKind] ?? hostKind}</b>
         </div>
         <div className="status__row">
           <span>People Chain</span>

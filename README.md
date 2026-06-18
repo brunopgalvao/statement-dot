@@ -2,7 +2,7 @@
 
 **A humans-only social network, built as a Polkadot Product.**
 
-> _Statements you can verify, from humans you can trust._
+> _Statements you can verify, from humans you can't fake._
 
 **🟢 Live:** [statement.dot.li](https://statement.dot.li) — registered via dotNS on the **summit**
 testnet (Polkadot Playground), bundle pinned to the Bulletin Chain.

@@ -7,7 +7,7 @@ export default {
   domain: "statement.dot",
   displayName: "statement.dot",
   description:
-    "A humans-only social network on Polkadot. Every account is Proof-of-Personhood verified, handles are dotNS names, and posts are signed statements gossiped on the People Chain. Statements you can verify, from humans you can trust.",
+    "A humans-only social network on Polkadot. Every account is Proof-of-Personhood verified, handles are dotNS names, and posts are signed statements gossiped on the People Chain. Statements you can verify, from humans you can't fake.",
   icon: { path: "./assets/icon.png", format: "png" },
   executables: [
     {

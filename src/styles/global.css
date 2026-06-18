@@ -391,6 +391,37 @@ a {
 .composer__count[data-long="true"] {
   color: var(--magenta-soft);
 }
+.pintoggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  padding: 5px 11px;
+  border-radius: 999px;
+  border: 1px solid var(--rule-strong);
+  color: var(--ink-soft);
+  transition: all 0.15s;
+}
+.pintoggle svg {
+  width: 14px;
+  height: 14px;
+}
+.pintoggle:hover:not(:disabled) {
+  color: var(--ink);
+  border-color: var(--ink-faint);
+}
+.pintoggle.is-on {
+  color: var(--verify);
+  border-color: rgba(45, 212, 167, 0.5);
+  background: var(--verify-wash);
+}
+.pintoggle:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
 
 /* ---- buttons -------------------------------------------------------------- */
 
@@ -529,10 +560,16 @@ a {
   letter-spacing: 0.04em;
   text-transform: uppercase;
   font-family: var(--font-mono);
-  color: var(--ink-faint);
-  border: 1px solid var(--rule-strong);
+  color: var(--verify);
+  border: 1px dashed rgba(45, 212, 167, 0.45);
+  background: var(--verify-wash);
   border-radius: 6px;
   padding: 3px 8px;
+}
+.stmt__pin svg {
+  width: 13px;
+  height: 13px;
+  flex: none;
 }
 
 /* ---- action row ----------------------------------------------------------- */
@@ -582,6 +619,54 @@ a {
 .act--tip:hover {
   background: var(--amber-wash);
   color: var(--amber);
+}
+
+/* tip amount picker */
+.tipwrap {
+  position: relative;
+  display: inline-flex;
+}
+.tipmenu {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 20;
+  background: var(--surface-2);
+  border: 1px solid var(--rule-strong);
+  border-radius: 12px;
+  padding: 10px 12px;
+  box-shadow: var(--shadow-card);
+  animation: enter 0.15s ease both;
+}
+.tipmenu__label {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  margin-bottom: 7px;
+  white-space: nowrap;
+}
+.tipmenu__amounts {
+  display: flex;
+  gap: 6px;
+}
+.tipmenu__amt {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 700;
+  padding: 7px 13px;
+  border-radius: 999px;
+  border: 1px solid var(--rule-strong);
+  color: var(--ink);
+  transition: all 0.13s;
+}
+.tipmenu__amt:hover {
+  background: var(--amber);
+  color: #1a1400;
+  border-color: var(--amber);
 }
 
 /* ---- frame / poll --------------------------------------------------------- */
@@ -667,6 +752,23 @@ a {
   align-items: center;
   gap: 11px;
   padding: 7px 0;
+}
+.who__open {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  flex: 1;
+  min-width: 0;
+  text-align: left;
+  padding: 0;
+  border-radius: 10px;
+  transition: opacity 0.12s;
+}
+.who__open:hover {
+  opacity: 0.82;
+}
+.who__open:hover .who__name {
+  text-decoration: underline;
 }
 .who__main {
   min-width: 0;

@@ -25,7 +25,8 @@ export function StatementCard({
     useStore();
   const author = profileFor(s.author);
   const [body, setBody] = useState(s.body ?? "");
-  const [tipped, setTipped] = useState(false);
+  const [tippedAmount, setTippedAmount] = useState<number | null>(null);
+  const [tipOpen, setTipOpen] = useState(false);
 
   useEffect(() => {
     if (!s.body && s.cid) sdk.storage.get(s.cid).then((b) => b && setBody(b));
@@ -67,8 +68,8 @@ export function StatementCard({
         </div>
 
         {s.cid && (
-          <span className="stmt__pin">
-            <Pin /> Pinned to Bulletin Chain · {s.cid.slice(0, 14)}…
+          <span className="stmt__pin" title={s.cid}>
+            <Pin /> Durable · Bulletin Chain · {s.cid.slice(0, 12)}…
           </span>
         )}
 
@@ -96,16 +97,35 @@ export function StatementCard({
           >
             {isLiked ? <HeartFilled /> : <Heart />} {c.like > 0 ? c.like : "Endorse"}
           </button>
-          <button
-            className="act act--tip"
-            onClick={() => {
-              tip(s.author, 1);
-              setTipped(true);
-            }}
-            title="Tip 1 DOT — private payment"
-          >
-            <Coin /> {tipped ? "Tipped ◈1" : "Tip"}
-          </button>
+          <div className="tipwrap">
+            <button
+              className="act act--tip"
+              onClick={() => setTipOpen((o) => !o)}
+              title="Tip DOT — private payment on Asset Hub"
+            >
+              <Coin /> {tippedAmount ? `Tipped ◈${tippedAmount}` : "Tip"}
+            </button>
+            {tipOpen && (
+              <div className="tipmenu" onMouseLeave={() => setTipOpen(false)}>
+                <span className="tipmenu__label">Tip privately</span>
+                <div className="tipmenu__amounts">
+                  {[1, 5, 10].map((amt) => (
+                    <button
+                      key={amt}
+                      className="tipmenu__amt"
+                      onClick={() => {
+                        tip(s.author, amt);
+                        setTippedAmount((t) => (t ?? 0) + amt);
+                        setTipOpen(false);
+                      }}
+                    >
+                      ◈{amt}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </article>

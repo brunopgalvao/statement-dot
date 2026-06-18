@@ -56,7 +56,7 @@ interface StoreValue {
     input: { handle: string; displayName: string; bio: string },
     onStep?: (step: OnboardStep) => void
   ): Promise<void>;
-  post(input: { body: string; channel?: string }): Promise<void>;
+  post(input: { body: string; channel?: string; pin?: boolean }): Promise<void>;
   reply(parentId: string, body: string): Promise<void>;
   like(statementId: string): Promise<void>;
   echo(statementId: string): Promise<void>;
@@ -250,15 +250,18 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const post = useCallback<StoreValue["post"]>(
-    async ({ body, channel = "home" }) => {
+    async ({ body, channel = "home", pin = false }) => {
       if (!session) return;
       const isLong = body.length > 280;
-      const cid = isLong ? await sdk.storage.put(body) : undefined;
+      // Pin to the Bulletin Chain when the user opts in (or for long posts) so
+      // the content is durable + content-addressed, surviving gossip TTL.
+      const durable = pin || isLong;
+      const cid = durable ? await sdk.storage.put(body) : undefined;
       await sdk.signer.sign(body);
       await sdk.statements.submit({
         kind: "post",
         author: session.pop.alias,
-        body: isLong ? undefined : body,
+        body: isLong ? undefined : body, // long bodies live only as the CID
         cid,
         channel,
       });
