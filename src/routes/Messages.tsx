@@ -4,7 +4,7 @@ import { ChatList } from "@/components/chat/ChatList";
 import { Conversation } from "@/components/chat/Conversation";
 import { NewChat } from "@/components/chat/NewChat";
 
-// A Telegram-style messenger, unified into statement.dot. Two-pane on desktop
+// A full real-time messenger, unified into statement.dot. Two-pane on desktop
 // (chat list + conversation), stacked on mobile (list ↔ conversation). Every
 // contact is a verified human — DMs, groups, supergroups, and channels.
 export function Messages() {

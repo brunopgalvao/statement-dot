@@ -1,7 +1,7 @@
 import type { Address, ChatContent, ChatMessage, ChatRoom, ProductSDK, RoomKind } from "../types";
 import { SEED_PROFILES } from "./data";
 
-// In-memory Telegram-style chat for the mock adapter: rooms, persistent
+// In-memory real-time chat for the mock adapter: rooms, persistent
 // messages, simulated peers that reply/type/come online, read receipts, and
 // reactions. Mirrors the `chat` group of ProductSDK so the messenger UI runs
 // with zero Host. `getMe` returns the signed-in alias once onboarding completes.

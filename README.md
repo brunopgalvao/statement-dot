@@ -1,134 +1,139 @@
 # statement.dot
 
-**A humans-only social network, built as a Polkadot Product.**
+**A humans-only social network _and_ messenger, built as a Polkadot Product.**
 
 > _Statements you can verify, from humans you can't fake._
 
-**🟢 Live:** [statement.dot.li](https://statement.dot.li) — registered via dotNS on the **summit**
-testnet (Polkadot Playground), bundle pinned to the Bulletin Chain.
-App CID `bafybeih5ut6zr3ei5sbjhbtbh5hpq26gktm2pwdl2xrkkjex4yjlwnsduy`.
+**🟢 Live:** [statement.dot.li](https://statement.dot.li) — `.dot` name registered via **dotNS** on the
+**summit** testnet (Polkadot Playground), bundle pinned to the **Bulletin Chain**, social registry
+contract deployed on **Asset Hub**.
 
-A social network with the one thing X and the rest can't buy: **Proof of
-Personhood**. Every account clears a one-time Ring-VRF proof in the Polkadot App and gets an
-**unlinkable per-Product alias** — so the network can prove you're a unique human while knowing
-nothing about who you are. No bots, no sockpuppets, no engagement farms.
+A social network + chat app with the one thing X and the others can't buy: **Proof of Personhood**.
+Every account clears a one-time Ring-VRF proof in the Polkadot App and gets an **unlinkable
+per-Product alias** — so the network can prove you're a unique human while knowing nothing about
+who you are. No bot farms, no sockpuppets, no scam DMs. Authorized bots stay possible, clearly
+labelled.
 
-- **Handles** are [dotNS](https://docs.polkadot.com/) names (`alice.dot`).
-- **Posts** are signed _statements_ gossiped through the **Statement Store** on the People Chain.
-- **Durable** posts + media pin to the **Bulletin Chain** as CIDs.
-- **Tips** flow through private **Coinage / Pocket** payments.
-- The whole thing is a static bundle published to `statement.dot`, served at `statement.dot.li`.
+- **Handles** are the **dotNS** name your account already owns (read from `signer.getUserId()` —
+  you can't invent one, so nobody can claim a name they don't hold).
+- **Posts** are signed _statements_ gossiped through the **Statement Store** on the People Chain;
+  pin one to the **Bulletin Chain** to make it durable.
+- **Identity** (handle + verified-human badge) is recorded **on-chain** in a PolkaVM registry
+  contract, so resolution is durable and tamper-evident.
+- **Messages** are a full full real-time messenger — DMs, groups, supergroups, channels — hand-rolled
+  over the product-sdk primitives.
 
 Built on the [Polkadot Product SDK](https://github.com/paritytech/product-sdk).
 
 ## Design
 
-A deliberate "**Record of Record**" aesthetic — an editorial public-affidavit / ledger look.
-Warm paper, ink, hairline rules between entries, statements set in **Fraunces**, all metadata in
-**Spline Sans Mono**. One brand accent (Polkadot magenta) for actions; one ink-stamp green reserved
-exclusively for the **VERIFIED HUMAN** stamp. The "dot" of statement.dot is a polka-dot texture.
+A dark, **X-inspired** interface: near-black canvas, dense rows, hairline separators, one Polkadot
+**magenta** action accent, one **green** VERIFIED HUMAN signal. Type: **Spline Sans** + **Spline
+Sans Mono** (self-hosted, no CDN). first-class messenger UX layered on the same tokens.
 
-## How it uses all 16 product-sdk packages
+## How it uses the product-sdk
 
-The app talks to the platform **only** through an adapter layer (`src/sdk/`) that mirrors the
-real packages 1:1. Today it runs against an in-memory **mock** (no Host, no phone required);
-swapping to live is a one-function change in `src/sdk/index.ts`.
+The app talks to the platform **only** through an adapter layer (`src/sdk/`) implementing one
+`ProductSDK` interface, with **two** swappable backends — `mock/` (in-memory, used by the local
+demo and tests) and `live/` (the real `@parity/product-sdk-*` packages). `bootSDK()` picks the live
+adapter automatically inside a Polkadot Host, otherwise the mock — zero UI changes.
 
-| Package | Where it's used |
+| Capability | product-sdk packages |
 | --- | --- |
-| `host` | Host detection + capability handshake (`src/sdk` boot) |
-| `signer` | Proof of Personhood alias + `under_alias` signing (onboarding, every post) |
-| `tx` | Claim `.dot` handle via dotNS; send tips |
-| `chain-client` + `descriptors` | Resolve handles, read balances |
-| `statement-store` | The live feed — posts, likes, follows, replies, DMs |
-| `cloud-storage` | Long posts/media → Bulletin Chain CID (composer auto-pins > 280 chars) |
-| `contracts` | PVM social contract: handle registry + verified-human badge + tip jar |
-| `keys` | Deterministic per-Product key for DM encryption |
-| `crypto` | Encrypt/decrypt DMs (see Messages → "Show ciphertext") |
-| `address` | SS58 shorten/validate for aliases |
-| `local-storage` | KvStore cache — session + feed |
-| `logger` / `utils` / `terminal` / `sdk` | Plumbing + umbrella |
+| Host detection / capability handshake | `host` |
+| Proof of Personhood alias + signing | `signer` |
+| Claim/own dotNS handle, send tips (Asset Hub) | `tx` + `chain-client` |
+| Social feed — posts, likes, echoes, replies, follows | `statement-store` |
+| Durable posts + chat media → Bulletin Chain CIDs | `cloud-storage` |
+| On-chain handle registry + verified-human badge | `contracts` (PolkaVM, `contracts/`) |
+| Per-Product key derivation + DM encryption | `keys` + `crypto` |
+| SS58 handling | `address` · client cache | `local-storage` |
 
-> Note: "Chat / Payment / PoP / dotNS" are **not** separate packages — they're composed from
-> `statement-store` / `tx` / `signer` / `chain-client`, exactly as the platform intends.
+> "Chat / Payment / PoP / dotNS" are **not** separate packages — they're **composed** from the
+> primitives above, exactly as the platform intends.
 
-### Two interchangeable adapters
+### The messenger (hand-rolled, no host chat surface)
 
-`src/sdk/` ships **both** implementations of the `ProductSDK` interface:
+The real-time chat is built entirely from product-sdk packages — **no `@novasamatech`, no
+`getChatManager`**:
 
-- **`src/sdk/mock/`** — an in-memory Polkadot (simulated gossip, dotNS, Bulletin Chain, registry).
-  Runs anywhere, no Host or phone. This is what the local demo uses.
-- **`src/sdk/live/`** — the **real** adapter, wired to the published `@parity/product-sdk-*`
-  packages (`SignerManager`, `StatementStoreClient`, `CloudStorageClient`, `getChainAPI`,
-  `submitAndWatch`, `KeyManager`, `createLocalKvStore`, `truncateAddress`…). It type-checks and
-  builds against the actual packages; its heavy chain-metadata deps are code-split into lazy
-  chunks so they never touch the mock bundle.
+- **Real-time messages** = signed statements published to a per-room topic via `statement-store`.
+- **Durable history** = a per-room log cached in `local-storage` (the Statement Store is ephemeral).
+- **Media** = images pinned to the **Bulletin Chain** via `cloud-storage` (CID in the message).
+- **Typing + presence** = short-TTL ephemeral statements (the Statement Store's canonical use case).
+- **Room kinds** — `dm` · `group` · `supergroup` · `channel` (channels are admin-only broadcast).
 
-`bootSDK()` (in `src/sdk/index.ts`) picks the live adapter automatically when the Product detects
-it's running inside a Polkadot Host (`window.self !== window.top` / host markers), and otherwise
-stays on the mock — so you get a real implementation in production and a frictionless demo locally,
-with zero UI changes. The `sdk` binding in the store is a live ES-module binding, so the swap
-propagates everywhere.
+See `src/sdk/{mock,live}/chat.ts` behind the `chat` group of `ProductSDK`.
+
+## Features
+
+**Feed** — post (Cmd+Enter), **pin to the Bulletin Chain** for durability, threads & replies,
+**Endorse / Echo / Tip** (tip picker: ◈1/◈5/◈10, a real Asset Hub transfer on live), channels
+(`#polkadot`, `#builders`), Everyone/Following scope. Counts are derived from the feed itself
+(every reaction is its own signed statement). Click any name → that person's profile.
+
+**Messenger** — chat list (search, unread badges, online dots, kind badges), conversations with
+mine/theirs bubbles, **read ticks**, **replies**, **reactions**, **typing indicators**, **presence**,
+**media**, date separators; start a DM by **`.dot` handle**, or create a group / supergroup / channel.
+Full-bleed two-pane on desktop, stacked on mobile.
 
 ## Run it
 
 ```bash
 npm install
-npm run dev      # http://localhost:5173
-```
-
-Onboard with any handle (it's a local mock), then:
-
-- **Make a statement** — posts gossip into the feed live; long ones (> 280) auto-pin to the Bulletin Chain.
-- **Open a thread** — click any statement to see replies and add your own.
-- **React** — Endorse (like), Echo (repost), and **Tip** (private 1-DOT payment); counts are derived from the feed itself, since every reaction is its own signed statement.
-- **Channels** — filter the record by `#polkadot`, `#builders`, `#governance`, `#proof-of-personhood`.
-- **Everyone / Following** — scope the feed to humans you follow.
-- **Messages** — end-to-end-encrypted DMs with a raw-ciphertext toggle (see exactly what crosses the wire).
-
-```bash
-npm run build       # type-check + production bundle
+npm run dev          # http://localhost:5173 — runs against the in-memory mock
 npm run typecheck
-node shot.mjs        # capture a screenshot walkthrough into ./shots (needs Playwright Chromium)
+npm run build
 ```
 
-## Run it live (Polkadot Desktop + App)
+Onboard, then explore both **The Record** (feed) and **Messages** (the messenger) — the mock
+simulates other verified humans posting, DMing, typing, and coming online.
 
-The `live/` adapter is fully wired (including the PVM registry via
-`@parity/product-sdk-contracts`). With **Polkadot Desktop** installed and the **Polkadot App**
-paired, run it for real:
+### Run it live (Polkadot Desktop + App)
 
 ```bash
-npm run build && npm run preview -- --port 5179   # or: npm run dev -- --port 5179
+npm run build && npm run preview -- --port 5179
 ```
 
-Then open `http://localhost:5179` **inside Polkadot Desktop** (its load-local-Product / dev view).
-Running inside the Host flips three switches automatically:
+Open `http://localhost:5179` **inside Polkadot Desktop**. `bootSDK()` detects the Host and swaps in
+the live adapter (the status rail reads **Polkadot Desktop**); signing routes to your phone, posts
+hit the real Statement Store, durable posts + chat media pin to the Bulletin Chain, tips dispatch on
+Asset Hub. On first connect, approve the **AutoSigning allowance** on your phone so publishing works.
+Grab **summit** testnet tokens with `pg drip` first.
 
-1. `bootSDK()` detects the container (`isInsideContainerSync()`) and swaps the mock for the **live
-   adapter** — the status rail will read the Host instead of `Local · Mock`.
-2. `SignerManager.connect()` derives your per-Product account and routes signing to your phone;
-   posting publishes real statements to the People Chain Statement Store; long posts pin to the
-   **Bulletin Chain** (Paseo); tips dispatch on **Asset Hub**.
-3. Grab **Paseo testnet** tokens from the [faucet](https://faucet.polkadot.io/) first (tips +
-   Bulletin storage cost a little).
+## Deploy
 
-To light up the on-chain **registry / verified-human badge / tip jar**, deploy
-`contract/StatementRegistry.sol` to Paseo Asset Hub and set `CONTRACT_ADDRESS` in
-`src/sdk/live/cdm.ts` — see [`contract/README.md`](contract/README.md). Until then the live adapter
-falls back to the Statement Store + local cache, so everything still works.
+The app is published via the **Polkadot Playground CLI** (`pg`):
 
-Remaining live TODOs (marked in `src/sdk/live/index.ts`): the dotNS registrar pallet path for
-`claimHandle`/`resolveHandle` (pending public pallet metadata) and sr25519 signature verification.
+```bash
+pg deploy --domain statement.dot --signer phone --env summit --no-contracts
+```
+
+This builds the bundle, uploads it to the Bulletin Chain, and binds `statement.dot` via dotNS. The
+listing icon/name/description come from `polkadot-app-deploy.config.ts` + `assets/icon.png`.
+
+**On-chain registry** (`contracts/statement-registry/`, a `pvm-contract-sdk` PolkaVM contract):
+
+```bash
+pg contract deploy --signer phone      # builds Rust → PolkaVM, deploys, registers; writes cdm.json
+```
+
+Deployed at `0x52367c9159d7e56f1379390a48757503860b4010` on summit Asset Hub. The live adapter reads
+the address from `cdm.json` (`src/sdk/live/cdm.ts`); until set, it falls back to gossip-based
+resolution and the app still works. See [`contracts/README.md`](contracts/README.md).
 
 ## Layout
 
 ```
 src/
-  sdk/            adapter layer — one wrapper per product-sdk package (+ mock/)
-  state/          React store wiring SDK groups into actions
-  components/     Composer, StatementCard, rails, VerifiedStamp, icons
-  routes/         Onboarding (the affidavit), Home, Profile, Channels, Messages
-  styles/         the "Record of Record" design system
-contract/         PVM (PolkaVM) social contract (handle registry · badge · tip jar)
+  sdk/            adapter layer — one ProductSDK interface, two backends
+    mock/         in-memory Polkadot (feed gossip, chat sim, Bulletin, registry)
+    live/         real @parity/product-sdk-* (statement-store, cloud-storage, contracts, …)
+                  + chat.ts (hand-rolled messenger)
+  state/store.tsx React store wiring SDK groups into feed + chat actions
+  components/      feed (StatementCard, Composer, rails) + chat/ (ChatList, Conversation, …)
+  routes/         Onboarding, Home, Profile, Channels, Messages (messenger)
+  styles/         the dark design system
+contracts/        pvm-contract-sdk PolkaVM registry (handle + verified-human badge)
+cdm.json          contract manifest resolved by @parity/product-sdk-contracts
 ```

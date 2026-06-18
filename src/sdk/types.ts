@@ -96,7 +96,7 @@ export interface Frame {
   tally: Record<string, number>;
 }
 
-// --- Chat (Telegram-style messenger) ----------------------------------------
+// --- Chat (full real-time messenger) ----------------------------------------
 
 export type ChatContent =
   | { kind: "text"; text: string }
@@ -118,7 +118,7 @@ export interface ChatMessage {
 }
 
 /**
- * Room kinds, à la Telegram:
+ * Room kinds:
  * - `dm`         — 1:1 direct message.
  * - `group`      — small private group chat (everyone posts).
  * - `supergroup` — large open group chat (everyone posts, many members).
@@ -184,7 +184,7 @@ export interface ProductSDK {
   };
 
   /**
-   * Telegram-style messenger — hand-rolled over the product-sdk primitives
+   * Full-featured real-time messenger — hand-rolled over the product-sdk primitives
    * (no host chat surface): messages are signed statements on a per-room topic
    * via `statement-store`, durable history is cached in `local-storage`, media
    * is pinned to the Bulletin Chain via `cloud-storage`, and typing/presence are
