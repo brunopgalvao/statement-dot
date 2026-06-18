@@ -1,35 +1,19 @@
 import type { CdmJson } from "@parity/product-sdk-contracts";
-import abi from "../../../contract/abi/StatementRegistry.json";
+import cdm from "../../../cdm.json";
 
 // ---------------------------------------------------------------------------
-// `cdm.json` manifest for the statement.dot social registry. This is what
-// @parity/product-sdk-contracts' ContractManager consumes. The ABI is the
-// canonical deploy artifact in contract/abi/StatementRegistry.json (compiled
-// from contract/StatementRegistry.sol with the revive Solidity compiler).
-//
-// CONTRACT_ADDRESS is the H160 the contract is deployed at. Until it's deployed
-// it stays the zero address, and the live adapter transparently falls back to
-// the Statement Store + local cache (the app works either way). Set this (and
-// REGISTRY_ADDRESS, if you use the on-chain CDM registry) after `cdm install` /
-// deploy and the contract path lights up with no other code changes.
+// The CDM manifest `@parity/product-sdk-contracts` resolves. It lives at the
+// repo root (cdm.json) so `pg contract deploy` can write the deployed address
+// back into it after building the Rust contract in contracts/statement-registry.
+// Until an address is set, the live adapter falls back to gossip-based
+// resolution and everything still works.
 // ---------------------------------------------------------------------------
 
-export const REGISTRY_LIBRARY = "statement.dot/registry";
-
-/** Set to the deployed contract's H160 to activate the on-chain path. */
-export const CONTRACT_ADDRESS: string = "0x0000000000000000000000000000000000000000";
-
+export const REGISTRY_LIBRARY = "@statement/registry";
 const ZERO = "0x0000000000000000000000000000000000000000";
 
-export const contractDeployed = CONTRACT_ADDRESS.toLowerCase() !== ZERO;
+export const STATEMENT_REGISTRY_CDM = cdm as unknown as CdmJson;
 
-export const STATEMENT_REGISTRY_CDM = {
-  dependencies: {},
-  contracts: {
-    [REGISTRY_LIBRARY]: {
-      version: 1,
-      address: CONTRACT_ADDRESS,
-      abi,
-    },
-  },
-} as unknown as CdmJson;
+const address =
+  (cdm.contracts as Record<string, { address?: string }>)?.[REGISTRY_LIBRARY]?.address ?? ZERO;
+export const contractDeployed = address.toLowerCase() !== ZERO;

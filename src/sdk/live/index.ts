@@ -205,31 +205,18 @@ export async function createLiveSDK(): Promise<ProductSDK> {
         const addr = await ensureConnected();
         const signer = manager.getSigner();
         if (!signer) throw new Error("no signer");
-        let txHash: string;
-        const registry = await getRegistry();
-        if (registry) {
-          // On-chain path: value-bearing call records the tip in the contract jar.
-          const res = await registry.tip.tx(ss58ToH160(to), {
-            signer,
-            value: amountPlanck,
-            onStatus: (s: string) => log("tip", `status ${s}`),
-          });
-          txHash = res.txHash;
-        } else {
-          // Fallback: a plain private balances transfer.
-          const client = await chain();
-          const api = client.raw.assetHub.getUnsafeApi();
-          const tx = api.tx.Balances.transfer_keep_alive({
-            dest: { type: "Id", value: to },
-            value: amountPlanck,
-          });
-          const res = await submitAndWatch(tx as never, signer, {
-            onStatus: (s) => log("tip", `status ${s}`),
-          });
-          txHash = res.txHash;
-        }
+        // Private balances transfer on Asset Hub.
+        const client = await chain();
+        const api = client.raw.assetHub.getUnsafeApi();
+        const tx = api.tx.Balances.transfer_keep_alive({
+          dest: { type: "Id", value: to },
+          value: amountPlanck,
+        });
+        const res = await submitAndWatch(tx as never, signer, {
+          onStatus: (s) => log("tip", `status ${s}`),
+        });
         tipTotals.set(addr, (tipTotals.get(addr) ?? 0n) + amountPlanck);
-        return txHash;
+        return res.txHash;
       },
     },
 
@@ -352,15 +339,6 @@ export async function createLiveSDK(): Promise<ProductSDK> {
         return [...profileCache.values()];
       },
       async tipJar(alias) {
-        const registry = await getRegistry();
-        if (registry) {
-          try {
-            const res = await registry.tipsOf.query(ss58ToH160(alias));
-            return BigInt(res.value as bigint | number);
-          } catch {
-            /* fall through */
-          }
-        }
         return tipTotals.get(alias) ?? 0n;
       },
     },

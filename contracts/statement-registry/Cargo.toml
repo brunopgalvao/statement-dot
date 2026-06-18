@@ -1,0 +1,26 @@
+[package]
+name = "statement-registry"
+version.workspace = true
+edition.workspace = true
+description = "statement.dot social registry — binds a per-Product alias to its dotNS handle + verified-human flag"
+authors.workspace = true
+homepage.workspace = true
+license.workspace = true
+
+[lib]
+path = "lib.rs"
+
+[[bin]]
+name = "statement-registry"
+path = "lib.rs"
+
+[features]
+abi-gen = ["pvm-contract-sdk/abi-gen"]
+
+[package.metadata.cdm]
+package = "@statement/registry"
+
+[dependencies]
+pvm-contract-sdk = { workspace = true }
+polkavm-derive = { workspace = true }
+picoalloc = { workspace = true }

@@ -1,0 +1,38 @@
+{
+  "targets": {},
+  "dependencies": {},
+  "contracts": {
+    "@statement/registry": {
+      "version": 1,
+      "address": "0x0000000000000000000000000000000000000000",
+      "abi": [
+        { "inputs": [], "stateMutability": "nonpayable", "type": "constructor" },
+        {
+          "inputs": [
+            { "name": "handle", "type": "string" },
+            { "name": "human", "type": "bool" }
+          ],
+          "name": "register",
+          "outputs": [],
+          "stateMutability": "nonpayable",
+          "type": "function"
+        },
+        {
+          "inputs": [{ "name": "account", "type": "address" }],
+          "name": "handleOf",
+          "outputs": [{ "name": "", "type": "string" }],
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "inputs": [{ "name": "account", "type": "address" }],
+          "name": "isHuman",
+          "outputs": [{ "name": "", "type": "bool" }],
+          "stateMutability": "view",
+          "type": "function"
+        }
+      ]
+    }
+  },
+  "registry": "0xa5747e60ae27f93e92019e4021abfc4957050141"
+}
