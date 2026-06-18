@@ -1,0 +1,37 @@
+{
+  "name": "statement-dot",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "statement.dot — a humans-only social network built as a Polkadot Product",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@parity/product-sdk-address": "^0.1.1",
+    "@parity/product-sdk-chain-client": "^0.7.6",
+    "@parity/product-sdk-cloud-storage": "^0.6.6",
+    "@parity/product-sdk-contracts": "^0.8.2",
+    "@parity/product-sdk-descriptors": "^0.6.2",
+    "@parity/product-sdk-host": "^0.11.0",
+    "@parity/product-sdk-keys": "^0.3.12",
+    "@parity/product-sdk-local-storage": "^0.2.11",
+    "@parity/product-sdk-signer": "^0.8.3",
+    "@parity/product-sdk-statement-store": "^0.4.10",
+    "@parity/product-sdk-tx": "^0.2.16",
+    "polkadot-api": "^2.1.6",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "@vitejs/plugin-react": "^4.3.4",
+    "playwright-core": "^1.61.0",
+    "typescript": "^5.6.3",
+    "vite": "^5.4.11"
+  }
+}
