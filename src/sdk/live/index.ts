@@ -16,7 +16,7 @@
 // ---------------------------------------------------------------------------
 
 import { isInsideContainer } from "@parity/product-sdk-host";
-import { SignerManager } from "@parity/product-sdk-signer";
+import { SignerManager, type SignerAccount } from "@parity/product-sdk-signer";
 import { StatementStoreClient } from "@parity/product-sdk-statement-store";
 import { submitAndWatch } from "@parity/product-sdk-tx";
 import { getChainAPI } from "@parity/product-sdk-chain-client";
@@ -25,7 +25,7 @@ import { ContractManager, ensureContractAccountMapped } from "@parity/product-sd
 import { SessionKeyManager } from "@parity/product-sdk-keys";
 import { createLocalKvStore, type LocalKvStore } from "@parity/product-sdk-local-storage";
 import { isValidSs58, ss58ToH160, truncateAddress } from "@parity/product-sdk-address";
-import { paseo_asset_hub } from "@parity/product-sdk-descriptors/paseo-asset-hub";
+import { summit_asset_hub } from "@parity/product-sdk-descriptors/summit-asset-hub";
 
 import type { Profile, ProductSDK, Statement } from "../types";
 import { REGISTRY_LIBRARY, STATEMENT_REGISTRY_CDM, contractDeployed } from "./cdm";
@@ -85,9 +85,21 @@ export async function createLiveSDK(): Promise<ProductSDK> {
       signer: createLazySigner(() => manager.getSigner()),
     }));
 
-  // The PVM social registry (handle registry + human badge + tip jar). Only
-  // built once a contract address is configured; otherwise the registry methods
-  // fall back to the Statement Store + local cache, so the app works either way.
+  // The unlinkable per-Product account — the identity we post under AND sign
+  // contract writes with, so `register` and `handleOf` key off the same alias.
+  let productAccountP: Promise<SignerAccount> | null = null;
+  async function productAccount(): Promise<SignerAccount> {
+    return (productAccountP ??= (async () => {
+      await ensureConnected();
+      const acc = await manager.getProductAccount(APP_DOTNS, 0);
+      if (!acc.ok) throw new Error(`getProductAccount failed: ${String(acc.error)}`);
+      return acc.value;
+    })());
+  }
+
+  // The PVM social registry (alias -> handle + human badge). Only built once a
+  // contract address is set in cdm.json; otherwise resolution falls back to the
+  // Statement Store + local cache, so the app works either way.
   let contractManagerP: Promise<ContractManager> | null = null;
   async function getContractManager(): Promise<ContractManager> {
     return (contractManagerP ??= (async () => {
@@ -96,7 +108,7 @@ export async function createLiveSDK(): Promise<ProductSDK> {
       return ContractManager.fromClient(
         STATEMENT_REGISTRY_CDM,
         client.raw.assetHub,
-        paseo_asset_hub,
+        summit_asset_hub,
         { signerManager: manager }
       );
     })());
@@ -105,11 +117,11 @@ export async function createLiveSDK(): Promise<ProductSDK> {
   async function getRegistry() {
     if (!contractDeployed) return null;
     const cm = await getContractManager();
-    const signer = manager.getSigner();
-    if (signer) {
-      // pallet-revive needs each signing account mapped SS58 → H160 once.
-      await ensureContractAccountMapped(cm.getRuntime(), address, signer).catch(() => null);
-    }
+    const acc = await productAccount();
+    // pallet-revive needs the signing account mapped SS58 → H160 once.
+    await ensureContractAccountMapped(cm.getRuntime(), acc.address, acc.getSigner()).catch(
+      () => null
+    );
     return cm.getContract(REGISTRY_LIBRARY);
   }
 
@@ -156,12 +168,10 @@ export async function createLiveSDK(): Promise<ProductSDK> {
 
     signer: {
       async proveHumanity() {
-        await ensureConnected();
-        // The unlinkable per-Product account is the app-scoped derived account;
-        // its Ring-VRF contextual alias is what proves unique personhood.
-        const acc = await manager.getProductAccount(APP_DOTNS, 0);
-        if (!acc.ok) throw new Error(`getProductAccount failed: ${String(acc.error)}`);
-        const alias = acc.value.address;
+        // The app-scoped derived account; its Ring-VRF contextual alias proves
+        // unique personhood. Same account signs contract writes (see getRegistry).
+        const acc = await productAccount();
+        const alias = acc.address;
         let proof = "ringvrf:host";
         const aliasRes = await manager.getProductAccountAlias(APP_DOTNS, 0).catch(() => null);
         if (aliasRes && aliasRes.ok) proof = `ringvrf:${hex(aliasRes.value.alias).slice(0, 16)}`;
@@ -289,13 +299,20 @@ export async function createLiveSDK(): Promise<ProductSDK> {
     // is always cache-derived (the contract has no enumerate method by design).
     contract: {
       async register(handle, alias, human) {
-        const registry = await getRegistry();
-        if (registry) {
-          const signer = manager.getSigner();
-          await registry.register.tx(handle, human, {
-            signer: signer ?? undefined,
-            onStatus: (s: string) => log("register", `status ${s}`),
-          });
+        // On-chain registration is a bonus on top of the cached + broadcast
+        // profile — never let a contract hiccup block onboarding.
+        try {
+          const registry = await getRegistry();
+          if (registry) {
+            // Sign with the per-Product account so msg.sender == the posting alias.
+            const acc = await productAccount();
+            await registry.register.tx(handle, human, {
+              signer: acc.getSigner(),
+              onStatus: (s: string) => log("register", `status ${s}`),
+            });
+          }
+        } catch (e) {
+          log("register", "on-chain register failed (using cache)", e);
         }
         const p: Profile = {
           handle,

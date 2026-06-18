@@ -4,7 +4,7 @@
   "contracts": {
     "@statement/registry": {
       "version": 1,
-      "address": "0x0000000000000000000000000000000000000000",
+      "address": "0x52367c9159d7e56f1379390a48757503860b4010",
       "abi": [
         { "inputs": [], "stateMutability": "nonpayable", "type": "constructor" },
         {
