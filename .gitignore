@@ -1,5 +1,7 @@
 node_modules
 dist
+*.car
+.cdm
 .DS_Store
 *.local
 *.log
