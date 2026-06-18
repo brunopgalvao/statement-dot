@@ -8,7 +8,7 @@
 testnet (Polkadot Playground), bundle pinned to the Bulletin Chain.
 App CID `bafybeih5ut6zr3ei5sbjhbtbh5hpq26gktm2pwdl2xrkkjex4yjlwnsduy`.
 
-Farcaster-inspired, but with the one thing X and Farcaster can't buy: **Proof of
+A social network with the one thing X and the rest can't buy: **Proof of
 Personhood**. Every account clears a one-time Ring-VRF proof in the Polkadot App and gets an
 **unlinkable per-Product alias** — so the network can prove you're a unique human while knowing
 nothing about who you are. No bots, no sockpuppets, no engagement farms.

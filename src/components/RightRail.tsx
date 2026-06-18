@@ -98,7 +98,7 @@ export function RightRail() {
         </p>
         <p>
           So the network can prove you're a unique human and still know nothing about who you are.
-          That's the trick X and Farcaster can't pull off.
+          That's the trick X and the rest can't pull off.
         </p>
       </div>
     </aside>
