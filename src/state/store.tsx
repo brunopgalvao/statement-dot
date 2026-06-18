@@ -42,6 +42,7 @@ interface StoreValue {
   tipsGiven: number;
   // navigation
   threadId: string | null;
+  profileAlias: string | null;
   activeChannel: string | null;
   scope: Scope;
   // derived
@@ -63,6 +64,8 @@ interface StoreValue {
   vote(statementId: string, actionId: string): void;
   openThread(id: string): void;
   closeThread(): void;
+  openProfile(alias: string): void;
+  closeProfile(): void;
   setChannel(channel: string | null): void;
   setScope(scope: Scope): void;
 }
@@ -81,6 +84,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [voted, setVoted] = useState<Set<string>>(new Set());
   const [tipsGiven, setTipsGiven] = useState(0);
   const [threadId, setThreadId] = useState<string | null>(null);
+  const [profileAlias, setProfileAlias] = useState<string | null>(null);
   const [activeChannel, setActiveChannel] = useState<string | null>(null);
   const [scope, setScope] = useState<Scope>("everyone");
 
@@ -111,6 +115,15 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     return () => unsub();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Always keep the signed-in user's own profile resolvable, even after a
+  // reload when the in-memory registry is empty (otherwise your own posts
+  // render as "unknown").
+  useEffect(() => {
+    if (session) {
+      setProfiles((prev) => ({ ...prev, [session.pop.alias]: session.profile }));
+    }
+  }, [session]);
 
   const ensureProfile = useCallback((alias: string) => {
     setProfiles((prev) => {
@@ -288,8 +301,16 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     [voted]
   );
 
-  const openThread = useCallback((id: string) => setThreadId(id), []);
+  const openThread = useCallback((id: string) => {
+    setThreadId(id);
+    setProfileAlias(null);
+  }, []);
   const closeThread = useCallback(() => setThreadId(null), []);
+  const openProfile = useCallback((alias: string) => {
+    setProfileAlias(alias);
+    setThreadId(null);
+  }, []);
+  const closeProfile = useCallback(() => setProfileAlias(null), []);
   const setChannel = useCallback((c: string | null) => setActiveChannel(c), []);
 
   const countsFor = useCallback(
@@ -303,16 +324,16 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const value = useMemo<StoreValue>(
     () => ({
       ready, hostKind, session, feed, profiles, following, liked, echoed, tipsGiven,
-      threadId, activeChannel, scope,
+      threadId, profileAlias, activeChannel, scope,
       countsFor, repliesOf, statementById, profileFor,
       onboard, post, reply, like, echo, follow, tip, vote,
-      openThread, closeThread, setChannel, setScope,
+      openThread, closeThread, openProfile, closeProfile, setChannel, setScope,
     }),
     [ready, hostKind, session, feed, profiles, following, liked, echoed, tipsGiven,
-      threadId, activeChannel, scope,
+      threadId, profileAlias, activeChannel, scope,
       countsFor, repliesOf, statementById, profileFor,
       onboard, post, reply, like, echo, follow, tip, vote,
-      openThread, closeThread, setChannel]
+      openThread, closeThread, openProfile, closeProfile, setChannel]
   );
 
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;

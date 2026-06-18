@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type MouseEvent } from "react";
 import type { Statement } from "@/sdk";
 import { sdk, useStore } from "@/state/store";
 import { relTime } from "@/lib/format";
@@ -21,7 +21,8 @@ export function StatementCard({
   /** When provided, Reply triggers this instead of navigating to the thread. */
   onReply?: () => void;
 }) {
-  const { profileFor, like, liked, echo, echoed, tip, vote, countsFor, openThread } = useStore();
+  const { profileFor, like, liked, echo, echoed, tip, vote, countsFor, openThread, openProfile } =
+    useStore();
   const author = profileFor(s.author);
   const [body, setBody] = useState(s.body ?? "");
   const [tipped, setTipped] = useState(false);
@@ -30,8 +31,8 @@ export function StatementCard({
     if (!s.body && s.cid) sdk.storage.get(s.cid).then((b) => b && setBody(b));
   }, [s.cid, s.body]);
 
-  const name = author?.displayName ?? "unknown";
-  const handle = author?.handle ?? "…resolving.dot";
+  const name = author?.displayName ?? sdk.address.shorten(s.author);
+  const handle = author?.handle ?? "";
   const hue = author?.avatarHue ?? 320;
   const c = countsFor(s.id);
   const isLiked = liked.has(s.id);
@@ -39,12 +40,21 @@ export function StatementCard({
 
   const open = () => linkToThread && openThread(s.id);
 
+  const goToProfile = (e: MouseEvent) => {
+    e.stopPropagation();
+    openProfile(s.author);
+  };
+
   return (
     <article className={`stmt${fresh ? " stmt--fresh" : ""}${linkToThread ? " stmt--link" : ""}`}>
-      <Avatar name={name} hue={hue} />
+      <button className="stmt__avatar" onClick={goToProfile} title={`View ${name}`}>
+        <Avatar name={name} hue={hue} />
+      </button>
       <div className="stmt__main">
         <header className="stmt__head">
-          <span className="stmt__name">{name}</span>
+          <button className="stmt__name stmt__namebtn" onClick={goToProfile}>
+            {name}
+          </button>
           {author?.human && <VerifiedStamp />}
           <span className="stmt__handle">{handle}</span>
           <span className="stmt__dot">·</span>

@@ -102,6 +102,10 @@ export function createMockSDK(): ProductSDK {
         await wait(120);
         return `sr25519:${hash(payload)}`;
       },
+      async getUserId() {
+        // No signed-in Host identity in the mock — onboarding stays manual.
+        return null;
+      },
     },
 
     tx: {

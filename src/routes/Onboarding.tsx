@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useStore, type OnboardStep } from "@/state/store";
+import { useEffect, useState } from "react";
+import { useStore, sdk, type OnboardStep } from "@/state/store";
 import { VerifiedStamp } from "@/components/VerifiedStamp";
 
 const STEPS: { id: OnboardStep; title: string; sub: string }[] = [
@@ -17,6 +17,26 @@ export function Onboarding() {
   const [bio, setBio] = useState("");
   const [step, setStep] = useState<OnboardStep | null>(null);
   const [error, setError] = useState("");
+  const [detected, setDetected] = useState(false);
+
+  // You're already signed in to the Host — pull your primary username and
+  // pre-fill the handle (and a default display name) so you don't retype it.
+  useEffect(() => {
+    let cancelled = false;
+    sdk.signer
+      .getUserId()
+      .then((u) => {
+        if (cancelled || !u?.primaryUsername) return;
+        const name = u.primaryUsername.replace(/\.dot$/, "");
+        setHandle((h) => h || name);
+        setDisplayName((d) => d || name);
+        setDetected(true);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const busy = step !== null && step !== "done";
   const cleanHandle = handle.trim().replace(/\.dot$/, "").replace(/[^a-z0-9_]/gi, "");
@@ -70,7 +90,9 @@ export function Onboarding() {
         </div>
 
         <div className="field field--handle">
-          <label>Your handle</label>
+          <label>
+            Your handle{detected && <span style={{ color: "var(--verify)" }}> · from your account</span>}
+          </label>
           <input
             value={cleanHandle}
             onChange={(e) => setHandle(e.target.value)}

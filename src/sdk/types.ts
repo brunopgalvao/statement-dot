@@ -101,6 +101,8 @@ export interface ProductSDK {
     proveHumanity(): Promise<PopProof>;
     /** Sign an arbitrary payload under the current alias (routes to the phone). */
     sign(payload: string): Promise<string>;
+    /** The signed-in account's primary username (for onboarding prefill), or null. */
+    getUserId(): Promise<{ primaryUsername: string } | null>;
   };
 
   /** `@parity/product-sdk-tx` — build + dispatch extrinsics. */

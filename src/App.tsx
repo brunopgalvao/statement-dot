@@ -19,7 +19,7 @@ const HEAD: Record<View, { title: string; sub: string }> = {
 };
 
 export default function App() {
-  const { ready, session, threadId, closeThread } = useStore();
+  const { ready, session, threadId, profileAlias, closeThread, closeProfile } = useStore();
   const [view, setView] = useState<View>("home");
 
   if (!ready) {
@@ -30,14 +30,20 @@ export default function App() {
     return <Onboarding />;
   }
 
-  // Opening a thread doesn't change the nav selection — it overlays the center.
+  // Threads and viewed profiles overlay the center without changing nav.
   const nav = (v: View) => {
     closeThread();
+    closeProfile();
     setView(v);
   };
 
   const inThread = threadId !== null;
-  const head = inThread ? { title: "The Record", sub: "Thread" } : HEAD[view];
+  const inProfile = profileAlias !== null;
+  const head = inThread
+    ? { title: "The Record", sub: "Thread" }
+    : inProfile
+      ? { title: "Profile", sub: "Public record" }
+      : HEAD[view];
 
   return (
     <div className="shell">
@@ -50,6 +56,8 @@ export default function App() {
         </header>
         {inThread ? (
           <Thread id={threadId!} />
+        ) : inProfile ? (
+          <Profile alias={profileAlias!} />
         ) : (
           <>
             {view === "home" && <Home />}

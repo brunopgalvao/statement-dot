@@ -180,6 +180,18 @@ export async function createLiveSDK(): Promise<ProductSDK> {
         }
         return "sr25519:host-signed";
       },
+      async getUserId() {
+        try {
+          await ensureConnected();
+          const res = await manager.getUserId();
+          if (res.ok && res.value.primaryUsername) {
+            return { primaryUsername: res.value.primaryUsername };
+          }
+        } catch {
+          /* not available — onboarding falls back to manual entry */
+        }
+        return null;
+      },
     },
 
     tx: {

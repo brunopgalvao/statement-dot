@@ -40,6 +40,7 @@
   --magenta: #e6007a;
   --magenta-bright: #ff3aa0;
   --magenta-soft: #ff7bc0;
+  --magenta-deep: #ff5bb0; /* readable magenta for handles/labels on dark */
   --magenta-wash: rgba(230, 0, 122, 0.14);
 
   --verify: #2dd4a7;
@@ -473,6 +474,22 @@ a {
   font-weight: 700;
   font-size: 15px;
   color: var(--ink);
+}
+.stmt__avatar {
+  flex: none;
+  padding: 0;
+  border-radius: 50%;
+  line-height: 0;
+  transition: opacity 0.12s;
+}
+.stmt__avatar:hover {
+  opacity: 0.85;
+}
+.stmt__namebtn {
+  padding: 0;
+}
+.stmt__namebtn:hover {
+  text-decoration: underline;
 }
 .stmt__handle {
   font-size: 14px;
