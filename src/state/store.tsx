@@ -132,12 +132,16 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       setHostKind(info.kind);
 
       const dir = await sdk.contract.directory();
-      setProfiles(Object.fromEntries(dir.map((p) => [p.alias, p])));
+      const cachedProfiles = sdk.kv.get<Record<string, Profile>>("profiles") ?? {};
+      setProfiles({ ...cachedProfiles, ...Object.fromEntries(dir.map((p) => [p.alias, p])) });
 
       const initial = await sdk.statements.query("home");
       // Profile statements resolve aliases -> handles; they're metadata, not feed.
       initial.forEach(ingestProfile);
-      setFeed(dedupe(initial.filter(isFeedStatement)));
+      // The Statement Store is ephemeral (TTL), so restore the locally-cached
+      // feed and merge any still-live statements on top — your posts persist.
+      const cachedFeed = sdk.kv.get<Statement[]>("feed") ?? [];
+      setFeed(dedupe([...initial.filter(isFeedStatement), ...cachedFeed]));
 
       const cached = sdk.kv.get<Session>("session");
       if (cached) setSession(cached);
@@ -213,6 +217,15 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ready, session]);
+
+  // Persist the feed + resolved profiles locally so they survive reloads
+  // (the Statement Store decays on TTL; this keeps your view stable).
+  useEffect(() => {
+    if (ready && feed.length) sdk.kv.set("feed", feed.slice(0, 150));
+  }, [ready, feed]);
+  useEffect(() => {
+    if (ready && Object.keys(profiles).length) sdk.kv.set("profiles", profiles);
+  }, [ready, profiles]);
 
   const ensureProfile = useCallback((alias: string) => {
     setProfiles((prev) => {

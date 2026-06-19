@@ -253,7 +253,7 @@ export function createMockSDK(): ProductSDK {
       },
     },
 
-    chat: createMockChat(() => myAlias),
+    chat: createMockChat(() => myAlias ?? sessionAliasFromStorage()),
 
     log(scope, msg, data) {
       // eslint-disable-next-line no-console
@@ -263,6 +263,16 @@ export function createMockSDK(): ProductSDK {
 }
 
 // ---- tiny deterministic helpers --------------------------------------------
+
+/** The persisted session's alias, so chat knows "me" after a reload. */
+function sessionAliasFromStorage(): string | null {
+  try {
+    const raw = globalThis.localStorage?.getItem("statement.dot:session");
+    return raw ? (JSON.parse(raw)?.pop?.alias ?? null) : null;
+  } catch {
+    return null;
+  }
+}
 
 function wait(ms: number): Promise<void> {
   return new Promise((r) => setTimeout(r, ms));

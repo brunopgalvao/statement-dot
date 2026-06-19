@@ -80,6 +80,14 @@ export async function createLiveSDK(): Promise<ProductSDK> {
       for (const cb of subs) cb(s);
     });
     connected = true;
+    // Resolve the per-Product alias now (not just in proveHumanity) so chat +
+    // contract know "me" even after a reload that restored the session without
+    // re-running onboarding.
+    productAccount()
+      .then((acc) => {
+        myAlias = acc.address;
+      })
+      .catch((e) => log("live", "product account resolve failed", e));
     log("live", "connected to host", { address });
     return address;
   }
@@ -434,11 +442,29 @@ export async function createLiveSDK(): Promise<ProductSDK> {
     },
 
     kv: {
+      // Persist synchronously in the webview's localStorage so the session,
+      // feed cache, and chat history survive a reload (the in-memory cache is
+      // empty on boot, and the host KvStore is async — neither works for the
+      // sync session-restore the store does on startup). Host KvStore is kept as
+      // a best-effort secondary write for cross-device sync.
       get<T>(key: string): T | null {
-        return (kvCache.get(key) as T) ?? null;
+        if (kvCache.has(key)) return kvCache.get(key) as T;
+        try {
+          const raw = globalThis.localStorage?.getItem(`statement.dot:${key}`);
+          const val = raw ? (JSON.parse(raw) as T) : null;
+          if (val !== null) kvCache.set(key, val);
+          return val;
+        } catch {
+          return null;
+        }
       },
       set<T>(key: string, value: T): void {
         kvCache.set(key, value);
+        try {
+          globalThis.localStorage?.setItem(`statement.dot:${key}`, JSON.stringify(value));
+        } catch {
+          /* quota/unavailable — non-fatal */
+        }
         kvStore?.setJSON(`${key}`, value).catch(() => {});
       },
     },
@@ -452,7 +478,9 @@ export async function createLiveSDK(): Promise<ProductSDK> {
   api.chat = createLiveChat({
     statements: api.statements,
     kv: api.kv,
-    getMe: () => myAlias,
+    // "me" = the resolved per-Product alias, or the persisted session's alias
+    // (so chat works immediately after a reload, before reconnect resolves it).
+    getMe: () => myAlias ?? api.kv.get<{ pop?: { alias?: string } }>("session")?.pop?.alias ?? null,
     log,
   });
 
